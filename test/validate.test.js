@@ -14,6 +14,19 @@ function createTempCsv(contents) {
   return { filePath, reportPath };
 }
 
+function createLogger() {
+  const logs = [];
+  const errors = [];
+  return {
+    logger: {
+      log: (message) => logs.push(String(message)),
+      error: (message) => errors.push(String(message)),
+    },
+    logs,
+    errors,
+  };
+}
+
 test("falla si falta columna email", () => {
   const { filePath, reportPath } = createTempCsv("name\nAlice\n");
   const { report, exitCode } = validateCsvFile(filePath, { reportPath });
@@ -140,4 +153,36 @@ test("archivo inexistente retorna exit 1", () => {
   const result = main(["--input", missingPath], { quiet: true });
 
   assert.equal(result.exitCode, 1);
+});
+
+test("--json imprime solo JSON parseable", () => {
+  const { filePath } = createTempCsv("email\nuser@example.com\n");
+  const { logger, logs, errors } = createLogger();
+  const result = main(["--input", filePath, "--json"], { logger });
+
+  assert.equal(result.exitCode, 0);
+  assert.equal(errors.length, 0);
+  assert.equal(logs.length, 1);
+  const parsed = JSON.parse(logs[0]);
+  assert.equal(parsed.valid, 1);
+});
+
+test("--strict imprime linea extra con invalidos", () => {
+  const { filePath } = createTempCsv("email\nnot-an-email\n");
+  const { logger, logs } = createLogger();
+  const result = main(["--input", filePath, "--strict"], { logger });
+
+  assert.equal(result.exitCode, 2);
+  assert.ok(logs.some((line) => line.includes("STRICT MODE: failing build")));
+});
+
+test("--strict --json no imprime linea extra", () => {
+  const { filePath } = createTempCsv("email\nnot-an-email\n");
+  const { logger, logs } = createLogger();
+  const result = main(["--input", filePath, "--strict", "--json"], { logger });
+
+  assert.equal(result.exitCode, 2);
+  assert.equal(logs.length, 1);
+  const parsed = JSON.parse(logs[0]);
+  assert.equal(parsed.invalid, 1);
 });

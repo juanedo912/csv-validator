@@ -5,7 +5,12 @@ const { parse } = require("csv-parse/sync");
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function parseCliArgs(argv) {
-  const args = { inputPath: null, outputPath: null };
+  const args = {
+    inputPath: null,
+    outputPath: null,
+    strict: false,
+    json: false,
+  };
   const tokens = Array.isArray(argv) ? argv.slice() : [];
 
   for (let index = 0; index < tokens.length; index += 1) {
@@ -40,6 +45,14 @@ function parseCliArgs(argv) {
       }
       args.outputPath = next;
       index += 1;
+      continue;
+    }
+    if (token === "--strict") {
+      args.strict = true;
+      continue;
+    }
+    if (token === "--json") {
+      args.json = true;
       continue;
     }
     if (!token.startsWith("-") && !args.inputPath) {
@@ -161,9 +174,11 @@ function main(argv, options = {}) {
   const out = quiet ? { log() {}, error() {} } : logger;
   let inputPath = null;
   let outputPath = null;
+  let strict = false;
+  let json = false;
 
   try {
-    ({ inputPath, outputPath } = parseCliArgs(argv));
+    ({ inputPath, outputPath, strict, json } = parseCliArgs(argv));
   } catch (error) {
     out.error(error.message);
     return { exitCode: 1 };
@@ -180,10 +195,17 @@ function main(argv, options = {}) {
     const { report, exitCode } = validateCsvFile(inputPath, {
       reportPath: outputPath || undefined,
     });
-    out.log(`Total: ${report.total}`);
-    out.log(`Valid: ${report.valid}`);
-    out.log(`Invalid: ${report.invalid}`);
-    out.log(`Errors: ${report.errors.length}`);
+    if (json) {
+      out.log(JSON.stringify(report));
+    } else {
+      out.log(`Total: ${report.total}`);
+      out.log(`Valid: ${report.valid}`);
+      out.log(`Invalid: ${report.invalid}`);
+      out.log(`Errors: ${report.errors.length}`);
+      if (strict && report.invalid > 0) {
+        out.log("STRICT MODE: failing build");
+      }
+    }
     return { exitCode, report };
   } catch (error) {
     if (error.code === "ENOENT") {
