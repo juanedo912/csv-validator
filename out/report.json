@@ -1,0 +1,19 @@
+{
+  "total": 5,
+  "valid": 3,
+  "invalid": 2,
+  "errors": [
+    {
+      "rowNumber": 4,
+      "email": "carla@email",
+      "errorCode": "INVALID_EMAIL",
+      "message": "Email is not valid"
+    },
+    {
+      "rowNumber": 6,
+      "email": "ana@email.com",
+      "errorCode": "DUPLICATE_EMAIL",
+      "message": "Email is duplicated"
+    }
+  ]
+}
