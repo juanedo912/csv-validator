@@ -12,14 +12,16 @@ function parseCliArgs(argv) {
     json: false,
   }
   const tokens = Array.isArray(argv) ? argv.slice() : []
+  let inputFlagSeen = false
+  let positionalInput = null
 
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index]
     if (token === '--') {
       const remaining = tokens.slice(index + 1)
       for (const positional of remaining) {
-        if (!args.inputPath) {
-          args.inputPath = positional
+        if (!positionalInput) {
+          positionalInput = positional
           continue
         }
       }
@@ -32,6 +34,7 @@ function parseCliArgs(argv) {
         error.code = 'USAGE'
         throw error
       }
+      inputFlagSeen = true
       args.inputPath = next
       index += 1
       continue
@@ -55,9 +58,13 @@ function parseCliArgs(argv) {
       args.json = true
       continue
     }
-    if (!token.startsWith('-') && !args.inputPath) {
-      args.inputPath = token
+    if (!token.startsWith('-') && !positionalInput) {
+      positionalInput = token
     }
+  }
+
+  if (!inputFlagSeen && positionalInput) {
+    args.inputPath = positionalInput
   }
 
   return args

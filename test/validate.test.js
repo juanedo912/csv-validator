@@ -82,6 +82,24 @@ test('parsea flags de CLI', () => {
   assert.equal(args.outputPath, 'out/custom.json')
 })
 
+test('prioriza --input aunque haya posicional antes', () => {
+  const args = parseCliArgs(['data/a.csv', '--input', 'data/b.csv'])
+
+  assert.equal(args.inputPath, 'data/b.csv')
+})
+
+test('prioriza --input aunque haya posicional despues', () => {
+  const args = parseCliArgs(['--input', 'data/b.csv', 'data/a.csv'])
+
+  assert.equal(args.inputPath, 'data/b.csv')
+})
+
+test('prioriza --input aunque haya posicional despues de --', () => {
+  const args = parseCliArgs(['--input', 'data/b.csv', '--', 'data/a.csv'])
+
+  assert.equal(args.inputPath, 'data/b.csv')
+})
+
 test('usa argumento posicional si no hay flags', () => {
   const args = parseCliArgs(['data/sample.csv'])
 
