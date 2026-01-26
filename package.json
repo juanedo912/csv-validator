@@ -1,0 +1,27 @@
+{
+  "name": "csv-validator",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "node --test",
+    "start": "node src/validate.js data/sample.csv"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/juanedo912/csv-validator.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/juanedo912/csv-validator/issues"
+  },
+  "homepage": "https://github.com/juanedo912/csv-validator#readme",
+  "dependencies": {
+    "csv-parse": "^6.1.0"
+  }
+}
