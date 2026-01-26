@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const { validateCsvFile } = require("../src/validate");
+const { parseCliArgs, validateCsvFile } = require("../src/validate");
 
 function createTempCsv(contents) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "csv-validator-"));
@@ -66,4 +66,44 @@ test("acepta BOM en header email", () => {
   assert.equal(report.total, 1);
   assert.equal(report.valid, 1);
   assert.equal(report.invalid, 0);
+});
+
+test("parsea flags de CLI", () => {
+  const args = parseCliArgs([
+    "--input",
+    "data/sample.csv",
+    "--output",
+    "out/custom.json",
+  ]);
+
+  assert.equal(args.inputPath, "data/sample.csv");
+  assert.equal(args.outputPath, "out/custom.json");
+});
+
+test("usa argumento posicional si no hay flags", () => {
+  const args = parseCliArgs(["data/sample.csv"]);
+
+  assert.equal(args.inputPath, "data/sample.csv");
+  assert.equal(args.outputPath, null);
+});
+
+test("respeta -- para argumentos posicionales", () => {
+  const args = parseCliArgs(["--", "-data.csv"]);
+
+  assert.equal(args.inputPath, "-data.csv");
+  assert.equal(args.outputPath, null);
+});
+
+test("falla si --input no tiene valor", () => {
+  assert.throws(
+    () => parseCliArgs(["--input", "--output", "out/report.json"]),
+    /Usage: missing value for --input/
+  );
+});
+
+test("falla si --output no tiene valor", () => {
+  assert.throws(
+    () => parseCliArgs(["--output"]),
+    /Usage: missing value for --output/
+  );
 });
