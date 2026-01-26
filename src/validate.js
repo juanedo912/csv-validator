@@ -4,6 +4,30 @@ const { parse } = require("csv-parse/sync");
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function parseCliArgs(argv) {
+  const args = { inputPath: null, outputPath: null };
+  const tokens = Array.isArray(argv) ? argv.slice() : [];
+
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token === "--input") {
+      args.inputPath = tokens[index + 1] || null;
+      index += 1;
+      continue;
+    }
+    if (token === "--output") {
+      args.outputPath = tokens[index + 1] || null;
+      index += 1;
+      continue;
+    }
+    if (!token.startsWith("-") && !args.inputPath) {
+      args.inputPath = token;
+    }
+  }
+
+  return args;
+}
+
 function buildError(rowNumber, email, errorCode, message) {
   return {
     rowNumber,
@@ -110,14 +134,17 @@ function validateCsvFile(filePath, options = {}) {
 }
 
 if (require.main === module) {
-  const filePath = process.argv[2];
+  const { inputPath, outputPath } = parseCliArgs(process.argv.slice(2));
+  const filePath = inputPath;
 
   if (!filePath) {
-    console.error("Usage: node src/validate.js <csv-file>");
+    console.error("Usage: node src/validate.js [--input <csv-file>] [--output <report-path>]");
     process.exitCode = 1;
   } else {
     try {
-      const { report, fatal } = validateCsvFile(filePath);
+      const { report, fatal } = validateCsvFile(filePath, {
+        reportPath: outputPath || undefined,
+      });
       console.log(`Total: ${report.total}`);
       console.log(`Valid: ${report.valid}`);
       console.log(`Invalid: ${report.invalid}`);
@@ -136,4 +163,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { validateCsvFile };
+module.exports = { parseCliArgs, validateCsvFile };
