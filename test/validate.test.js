@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const { parseCliArgs, validateCsvFile } = require("../src/validate");
+const { main, parseCliArgs, validateCsvFile } = require("../src/validate");
 
 function createTempCsv(contents) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "csv-validator-"));
@@ -16,9 +16,9 @@ function createTempCsv(contents) {
 
 test("falla si falta columna email", () => {
   const { filePath, reportPath } = createTempCsv("name\nAlice\n");
-  const { report, fatal } = validateCsvFile(filePath, { reportPath });
+  const { report, exitCode } = validateCsvFile(filePath, { reportPath });
 
-  assert.equal(fatal, true);
+  assert.equal(exitCode, 2);
   assert.equal(report.errors.length, 1);
   assert.equal(report.errors[0].errorCode, "MISSING_EMAIL_COLUMN");
 });
@@ -60,9 +60,9 @@ test("acepta BOM en header email", () => {
   const { filePath, reportPath } = createTempCsv(
     "\ufeffemail\nuser@example.com\n"
   );
-  const { report, fatal } = validateCsvFile(filePath, { reportPath });
+  const { report, exitCode } = validateCsvFile(filePath, { reportPath });
 
-  assert.equal(fatal, false);
+  assert.equal(exitCode, 0);
   assert.equal(report.total, 1);
   assert.equal(report.valid, 1);
   assert.equal(report.invalid, 0);
@@ -106,4 +106,38 @@ test("falla si --output no tiene valor", () => {
     () => parseCliArgs(["--output"]),
     /Usage: missing value for --output/
   );
+});
+
+test("csv valido retorna exit 0", () => {
+  const { filePath, reportPath } = createTempCsv(
+    "email\nuser@example.com\n"
+  );
+  const result = main(["--input", filePath, "--output", reportPath], {
+    quiet: true,
+  });
+
+  assert.equal(result.exitCode, 0);
+});
+
+test("csv invalido retorna exit 2", () => {
+  const { filePath, reportPath } = createTempCsv("email\nnot-an-email\n");
+  const result = main(["--input", filePath, "--output", reportPath], {
+    quiet: true,
+  });
+
+  assert.equal(result.exitCode, 2);
+});
+
+test("csv malformado retorna exit 1", () => {
+  const { filePath } = createTempCsv('email\n"broken\n');
+  const result = main(["--input", filePath], { quiet: true });
+
+  assert.equal(result.exitCode, 1);
+});
+
+test("archivo inexistente retorna exit 1", () => {
+  const missingPath = path.join(os.tmpdir(), "no-such-file.csv");
+  const result = main(["--input", missingPath], { quiet: true });
+
+  assert.equal(result.exitCode, 1);
 });

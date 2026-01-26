@@ -23,7 +23,9 @@ function parseCliArgs(argv) {
     if (token === "--input") {
       const next = tokens[index + 1];
       if (!next || next.startsWith("-")) {
-        throw new Error("Usage: missing value for --input");
+        const error = new Error("Usage: missing value for --input");
+        error.code = "USAGE";
+        throw error;
       }
       args.inputPath = next;
       index += 1;
@@ -32,7 +34,9 @@ function parseCliArgs(argv) {
     if (token === "--output") {
       const next = tokens[index + 1];
       if (!next || next.startsWith("-")) {
-        throw new Error("Usage: missing value for --output");
+        const error = new Error("Usage: missing value for --output");
+        error.code = "USAGE";
+        throw error;
       }
       args.outputPath = next;
       index += 1;
@@ -99,9 +103,9 @@ function validateCsvFile(filePath, options = {}) {
         ),
       ],
     };
-    writeReport(report, reportPath);
-    return { report, fatal: true };
-  }
+  writeReport(report, reportPath);
+  return { report, exitCode: 2 };
+}
 
   const errors = [];
   const seenEmails = new Set();
@@ -148,45 +152,52 @@ function validateCsvFile(filePath, options = {}) {
   };
 
   writeReport(report, reportPath);
-  return { report, fatal: false };
+  return { report, exitCode: errors.length > 0 ? 2 : 0 };
+}
+
+function main(argv, options = {}) {
+  const logger = options.logger || console;
+  const quiet = options.quiet === true;
+  const out = quiet ? { log() {}, error() {} } : logger;
+  let inputPath = null;
+  let outputPath = null;
+
+  try {
+    ({ inputPath, outputPath } = parseCliArgs(argv));
+  } catch (error) {
+    out.error(error.message);
+    return { exitCode: 1 };
+  }
+
+  if (!inputPath) {
+    out.error(
+      "Usage: node src/validate.js [--input <csv-file>] [--output <report-path>]"
+    );
+    return { exitCode: 1 };
+  }
+
+  try {
+    const { report, exitCode } = validateCsvFile(inputPath, {
+      reportPath: outputPath || undefined,
+    });
+    out.log(`Total: ${report.total}`);
+    out.log(`Valid: ${report.valid}`);
+    out.log(`Invalid: ${report.invalid}`);
+    out.log(`Errors: ${report.errors.length}`);
+    return { exitCode, report };
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      out.error(`Archivo no existe: ${inputPath}`);
+    } else {
+      out.error(error.message || "CSV malformado");
+    }
+    return { exitCode: 1 };
+  }
 }
 
 if (require.main === module) {
-  let inputPath = null;
-  let outputPath = null;
-  try {
-    ({ inputPath, outputPath } = parseCliArgs(process.argv.slice(2)));
-  } catch (error) {
-    console.error(error.message);
-    process.exitCode = 1;
-  }
-  const filePath = inputPath;
-
-  if (process.exitCode === 1) {
-  } else if (!filePath) {
-    console.error("Usage: node src/validate.js [--input <csv-file>] [--output <report-path>]");
-    process.exitCode = 1;
-  } else {
-    try {
-      const { report, fatal } = validateCsvFile(filePath, {
-        reportPath: outputPath || undefined,
-      });
-      console.log(`Total: ${report.total}`);
-      console.log(`Valid: ${report.valid}`);
-      console.log(`Invalid: ${report.invalid}`);
-      console.log(`Errors: ${report.errors.length}`);
-      if (fatal) {
-        process.exitCode = 1;
-      }
-    } catch (error) {
-      if (error.code === "ENOENT") {
-        console.error(`Archivo no existe: ${filePath}`);
-      } else {
-        console.error(error.message || "CSV malformado");
-      }
-      process.exitCode = 1;
-    }
-  }
+  const { exitCode } = main(process.argv.slice(2));
+  process.exit(exitCode);
 }
 
-module.exports = { parseCliArgs, validateCsvFile };
+module.exports = { main, parseCliArgs, validateCsvFile };
