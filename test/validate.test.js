@@ -55,3 +55,15 @@ test("ignora lineas vacias al final", () => {
   assert.equal(report.invalid, 0);
   assert.equal(report.errors.length, 0);
 });
+
+test("acepta BOM en header email", () => {
+  const { filePath, reportPath } = createTempCsv(
+    "\ufeffemail\nuser@example.com\n"
+  );
+  const { report, fatal } = validateCsvFile(filePath, { reportPath });
+
+  assert.equal(fatal, false);
+  assert.equal(report.total, 1);
+  assert.equal(report.valid, 1);
+  assert.equal(report.invalid, 0);
+});

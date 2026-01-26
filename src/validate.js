@@ -28,6 +28,9 @@ function validateCsvFile(filePath, options = {}) {
   try {
     records = parse(raw, {
       columns: (header) => {
+        if (header.length > 0 && header[0].startsWith("\ufeff")) {
+          header[0] = header[0].slice(1);
+        }
         headers = header;
         return header;
       },
