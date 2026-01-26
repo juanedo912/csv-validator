@@ -10,6 +10,16 @@ function parseCliArgs(argv) {
 
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index];
+    if (token === "--") {
+      const remaining = tokens.slice(index + 1);
+      for (const positional of remaining) {
+        if (!args.inputPath) {
+          args.inputPath = positional;
+          continue;
+        }
+      }
+      break;
+    }
     if (token === "--input") {
       args.inputPath = tokens[index + 1] || null;
       index += 1;

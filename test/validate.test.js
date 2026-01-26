@@ -86,3 +86,10 @@ test("usa argumento posicional si no hay flags", () => {
   assert.equal(args.inputPath, "data/sample.csv");
   assert.equal(args.outputPath, null);
 });
+
+test("respeta -- para argumentos posicionales", () => {
+  const args = parseCliArgs(["--", "-data.csv"]);
+
+  assert.equal(args.inputPath, "-data.csv");
+  assert.equal(args.outputPath, null);
+});
