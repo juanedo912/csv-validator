@@ -93,3 +93,17 @@ test("respeta -- para argumentos posicionales", () => {
   assert.equal(args.inputPath, "-data.csv");
   assert.equal(args.outputPath, null);
 });
+
+test("falla si --input no tiene valor", () => {
+  assert.throws(
+    () => parseCliArgs(["--input", "--output", "out/report.json"]),
+    /Usage: missing value for --input/
+  );
+});
+
+test("falla si --output no tiene valor", () => {
+  assert.throws(
+    () => parseCliArgs(["--output"]),
+    /Usage: missing value for --output/
+  );
+});
