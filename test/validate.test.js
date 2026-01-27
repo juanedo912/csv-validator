@@ -134,9 +134,18 @@ test('csv valido retorna exit 0', async () => {
   assert.equal(result.exitCode, 0)
 })
 
-test('csv invalido retorna exit 2', async () => {
+test('csv invalido sin --strict retorna exit 0', async () => {
   const { filePath, reportPath } = createTempCsv('email\nnot-an-email\n')
   const result = await main(['--input', filePath, '--output', reportPath], {
+    quiet: true,
+  })
+
+  assert.equal(result.exitCode, 0)
+})
+
+test('csv invalido con --strict retorna exit 2', async () => {
+  const { filePath, reportPath } = createTempCsv('email\nnot-an-email\n')
+  const result = await main(['--input', filePath, '--output', reportPath, '--strict'], {
     quiet: true,
   })
 
@@ -175,7 +184,7 @@ test('--strict imprime linea extra con invalidos', async () => {
   const result = await main(['--input', filePath, '--strict'], { logger })
 
   assert.equal(result.exitCode, 2)
-  assert.ok(logs.some((line) => line.includes('STRICT MODE: failing build')))
+  assert.ok(logs.some((line) => line.includes('STRICT MODE: invalid rows found (exitCode=2)')))
 })
 
 test('--strict --json no imprime linea extra', async () => {

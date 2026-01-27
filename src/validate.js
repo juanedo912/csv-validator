@@ -187,6 +187,11 @@ async function main(argv, options = {}) {
       reportPath: outputPath || undefined,
     })
 
+    let finalExitCode = exitCode
+    if (!strict && report.invalid > 0) {
+      finalExitCode = 0
+    }
+
     if (syncSheets) {
       const url = process.env.SHEETS_WEBAPP_URL
       const token = process.env.SHEETS_TOKEN
@@ -222,10 +227,10 @@ async function main(argv, options = {}) {
       out.log(`Invalid: ${report.invalid}`)
       out.log(`Errors: ${report.errors.length}`)
       if (strict && report.invalid > 0) {
-        out.log('STRICT MODE: failing build')
+        out.log('STRICT MODE: invalid rows found (exitCode=2)')
       }
     }
-    return { exitCode, report }
+    return { exitCode: finalExitCode, report }
   } catch (error) {
     if (error.code === 'ENOENT') {
       out.error(`Archivo no existe: ${inputPath}`)
