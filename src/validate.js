@@ -1,3 +1,5 @@
+require('dotenv').config()
+
 const fs = require('node:fs')
 const path = require('node:path')
 const { parse } = require('csv-parse/sync')
@@ -10,6 +12,7 @@ function parseCliArgs(argv) {
     outputPath: null,
     strict: false,
     json: false,
+    syncSheets: false,
   }
   const tokens = Array.isArray(argv) ? argv.slice() : []
   let inputFlagSeen = false
@@ -56,6 +59,10 @@ function parseCliArgs(argv) {
     }
     if (token === '--json') {
       args.json = true
+      continue
+    }
+    if (token === '--sync-sheets') {
+      args.syncSheets = true
       continue
     }
     if (!token.startsWith('-') && !positionalInput) {
@@ -153,7 +160,7 @@ function validateCsvFile(filePath, options = {}) {
   return { report, exitCode: errors.length > 0 ? 2 : 0 }
 }
 
-function main(argv, options = {}) {
+async function main(argv, options = {}) {
   const logger = options.logger || console
   const quiet = options.quiet === true
   const out = quiet ? { log() {}, error() {} } : logger
@@ -161,9 +168,10 @@ function main(argv, options = {}) {
   let outputPath = null
   let strict = false
   let json = false
+  let syncSheets = false
 
   try {
-    ;({ inputPath, outputPath, strict, json } = parseCliArgs(argv))
+    ;({ inputPath, outputPath, strict, json, syncSheets } = parseCliArgs(argv))
   } catch (error) {
     out.error(error.message)
     return { exitCode: 1 }
@@ -178,6 +186,34 @@ function main(argv, options = {}) {
     const { report, exitCode } = validateCsvFile(inputPath, {
       reportPath: outputPath || undefined,
     })
+
+    if (syncSheets) {
+      const url = process.env.SHEETS_WEBAPP_URL
+      const token = process.env.SHEETS_TOKEN
+
+      if (!url || !token) {
+        out.error('Missing env vars: SHEETS_WEBAPP_URL and/or SHEETS_TOKEN')
+        return { exitCode: 1 }
+      }
+
+      const res = await fetch(`${url}?token=${encodeURIComponent(token)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          timestamp: new Date().toISOString(),
+          inputPath,
+          exitCode,
+          report,
+        }),
+      })
+
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data || data.ok !== true) {
+        out.error('Sheets sync failed')
+        return { exitCode: 1 }
+      }
+    }
+
     if (json) {
       out.log(JSON.stringify(report))
     } else {
@@ -201,8 +237,10 @@ function main(argv, options = {}) {
 }
 
 if (require.main === module) {
-  const { exitCode } = main(process.argv.slice(2))
-  process.exit(exitCode)
+  ;(async () => {
+    const { exitCode } = await main(process.argv.slice(2))
+    process.exit(exitCode)
+  })()
 }
 
 module.exports = { main, parseCliArgs, validateCsvFile }
