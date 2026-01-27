@@ -125,42 +125,42 @@ test('falla si --output no tiene valor', () => {
   assert.throws(() => parseCliArgs(['--output']), /Usage: missing value for --output/)
 })
 
-test('csv valido retorna exit 0', () => {
+test('csv valido retorna exit 0', async () => {
   const { filePath, reportPath } = createTempCsv('email\nuser@example.com\n')
-  const result = main(['--input', filePath, '--output', reportPath], {
+  const result = await main(['--input', filePath, '--output', reportPath], {
     quiet: true,
   })
 
   assert.equal(result.exitCode, 0)
 })
 
-test('csv invalido retorna exit 2', () => {
+test('csv invalido retorna exit 2', async () => {
   const { filePath, reportPath } = createTempCsv('email\nnot-an-email\n')
-  const result = main(['--input', filePath, '--output', reportPath], {
+  const result = await main(['--input', filePath, '--output', reportPath], {
     quiet: true,
   })
 
   assert.equal(result.exitCode, 2)
 })
 
-test('csv malformado retorna exit 1', () => {
+test('csv malformado retorna exit 1', async () => {
   const { filePath } = createTempCsv('email\n"broken\n')
-  const result = main(['--input', filePath], { quiet: true })
+  const result = await main(['--input', filePath], { quiet: true })
 
   assert.equal(result.exitCode, 1)
 })
 
-test('archivo inexistente retorna exit 1', () => {
+test('archivo inexistente retorna exit 1', async () => {
   const missingPath = path.join(os.tmpdir(), 'no-such-file.csv')
-  const result = main(['--input', missingPath], { quiet: true })
+  const result = await main(['--input', missingPath], { quiet: true })
 
   assert.equal(result.exitCode, 1)
 })
 
-test('--json imprime solo JSON parseable', () => {
+test('--json imprime solo JSON parseable', async () => {
   const { filePath } = createTempCsv('email\nuser@example.com\n')
   const { logger, logs, errors } = createLogger()
-  const result = main(['--input', filePath, '--json'], { logger })
+  const result = await main(['--input', filePath, '--json'], { logger })
 
   assert.equal(result.exitCode, 0)
   assert.equal(errors.length, 0)
@@ -169,19 +169,19 @@ test('--json imprime solo JSON parseable', () => {
   assert.equal(parsed.valid, 1)
 })
 
-test('--strict imprime linea extra con invalidos', () => {
+test('--strict imprime linea extra con invalidos', async () => {
   const { filePath } = createTempCsv('email\nnot-an-email\n')
   const { logger, logs } = createLogger()
-  const result = main(['--input', filePath, '--strict'], { logger })
+  const result = await main(['--input', filePath, '--strict'], { logger })
 
   assert.equal(result.exitCode, 2)
   assert.ok(logs.some((line) => line.includes('STRICT MODE: failing build')))
 })
 
-test('--strict --json no imprime linea extra', () => {
+test('--strict --json no imprime linea extra', async () => {
   const { filePath } = createTempCsv('email\nnot-an-email\n')
   const { logger, logs } = createLogger()
-  const result = main(['--input', filePath, '--strict', '--json'], { logger })
+  const result = await main(['--input', filePath, '--strict', '--json'], { logger })
 
   assert.equal(result.exitCode, 2)
   assert.equal(logs.length, 1)
