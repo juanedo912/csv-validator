@@ -201,10 +201,11 @@ async function main(argv, options = {}) {
         return { exitCode: 1 }
       }
 
-      const res = await fetch(`${url}?token=${encodeURIComponent(token)}`, {
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          token,
           timestamp: new Date().toISOString(),
           inputPath,
           exitCode,
@@ -212,9 +213,23 @@ async function main(argv, options = {}) {
         }),
       })
 
-      const data = await res.json().catch(() => null)
+      out.log(`Sheets response status: ${res.status}`)
+      out.log(`Sheets response content-type: ${res.headers.get('content-type')}`)
+
+      const text = await res.text().catch(() => '')
+      let data = null
+      try {
+        data = JSON.parse(text)
+      } catch (_) {
+        // no era JSON
+      }
+
       if (!res.ok || !data || data.ok !== true) {
-        out.error('Sheets sync failed')
+        const details = data && data.error ? `: ${data.error}` : ''
+        out.error(`Sheets sync failed${details}`)
+        if (!data) {
+          out.error(`Sheets raw response (first 200 chars): ${text.slice(0, 200)}`)
+        }
         return { exitCode: 1 }
       }
     }
