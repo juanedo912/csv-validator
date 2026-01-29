@@ -1,6 +1,5 @@
 function doPost(e) {
   try {
-    // 1) Leer body
     const raw = e && e.postData && e.postData.contents;
     if (!raw) return json_({ ok: false, error: "Missing body" });
 
@@ -11,28 +10,28 @@ function doPost(e) {
       return json_({ ok: false, error: "Invalid JSON" });
     }
 
-    // 2) Validar token (Script Properties)
-    const expectedToken = PropertiesService.getScriptProperties().getProperty("csvv_2026_01_26_9f1c2a7b0d6e4c5a");
+    const props = PropertiesService.getScriptProperties();
+
+    // Token
+    const expectedToken = props.getProperty("SHEETS_TOKEN");
     if (!expectedToken) return json_({ ok: false, error: "Server misconfigured: missing SHEETS_TOKEN" });
+    if (payload.token !== expectedToken) return json_({ ok: false, error: "Unauthorized" });
 
-    if (payload.token !== expectedToken) {
-      return json_({ ok: false, error: "Unauthorized" });
-    }
+    // Destination (multi-sheet)
+    const spreadsheetId = payload.spreadsheetId || props.getProperty("DEFAULT_SPREADSHEET_ID");
+    const sheetName = payload.sheetName || props.getProperty("DEFAULT_SHEET_NAME") || "runs";
 
-    // 3) Resolver spreadsheet + sheet
-    const spreadsheetId = PropertiesService.getScriptProperties().getProperty("1ITO7yugKSt_e3BBNDmBqeC2c7KlSNS7zdn8txl777_A");
-    const sheetName =
-      PropertiesService.getScriptProperties().getProperty("csv-validator-reports") || "Reports";
+    if (!spreadsheetId) return json_({ ok: false, error: "Missing spreadsheetId (and no DEFAULT_SPREADSHEET_ID set)" });
 
-    if (!spreadsheetId) return json_({ ok: false, error: "Server misconfigured: missing DEFAULT_SPREADSHEET_ID" });
+    enforceAllowlist_(spreadsheetId);
 
-    // 4) Normalizar campos (según tu Node payload)
+    // Normalizar campos
     const timestamp = payload.timestamp || new Date().toISOString();
     const inputPath = payload.inputPath || "";
     const exitCode = Number(payload.exitCode);
     const report = payload.report ?? null;
 
-    // 5) Escribir (con lock por concurrencia)
+    // Write (lock)
     const lock = LockService.getScriptLock();
     lock.waitLock(20000);
     try {
@@ -44,8 +43,10 @@ function doPost(e) {
       sheet.appendRow([
         new Date(timestamp),
         inputPath,
+        report ? Number(report.total) : "",
+        report ? Number(report.valid) : "",
+        report ? Number(report.invalid) : "",
         exitCode,
-        report ? JSON.stringify(report) : "",
       ]);
     } finally {
       lock.releaseLock();
@@ -57,16 +58,22 @@ function doPost(e) {
   }
 }
 
+function enforceAllowlist_(spreadsheetId) {
+  const allow = PropertiesService.getScriptProperties().getProperty("ALLOWED_SPREADSHEET_IDS");
+  if (!allow) return; // si no existe, permite todo
+  const allowed = allow.split(",").map(s => s.trim()).filter(Boolean);
+  if (!allowed.includes(spreadsheetId)) throw new Error("spreadsheetId not allowed");
+}
+
 function ensureHeader_(sheet) {
-  const values = sheet.getRange(1, 1, 1, 4).getValues()[0];
-  const empty = values.every(v => v === "" || v === null);
-  if (empty) {
-    sheet.getRange(1, 1, 1, 4).setValues([[
-      "timestamp",
-      "inputPath",
-      "exitCode",
-      "report_json"
-    ]]);
+  const expected = ["timestamp", "inputPath", "total", "valid", "invalid", "exitCode"];
+  const values = sheet.getRange(1, 1, 1, expected.length).getValues()[0];
+
+  const isEmpty = values.every(v => v === "" || v === null);
+  const matches = expected.every((h, i) => String(values[i] || "").trim() === h);
+
+  if (isEmpty || !matches) {
+    sheet.getRange(1, 1, 1, expected.length).setValues([expected]);
   }
 }
 
