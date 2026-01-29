@@ -201,16 +201,23 @@ async function main(argv, options = {}) {
         return { exitCode: 1 }
       }
 
+      const spreadsheetId = process.env.SHEETS_SPREADSHEET_ID
+      const sheetName = process.env.SHEETS_SHEET_NAME
+
+      const payload = {
+        token,
+        timestamp: new Date().toISOString(),
+        inputPath,
+        exitCode,
+        report,
+        spreadsheetId,
+        sheetName,
+      };
+
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token,
-          timestamp: new Date().toISOString(),
-          inputPath,
-          exitCode,
-          report,
-        }),
+        body: JSON.stringify(payload),
       })
 
       out.log(`Sheets response status: ${res.status}`)
@@ -227,9 +234,6 @@ async function main(argv, options = {}) {
       if (!res.ok || !data || data.ok !== true) {
         const details = data && data.error ? `: ${data.error}` : ''
         out.error(`Sheets sync failed${details}`)
-        if (!data) {
-          out.error(`Sheets raw response (first 200 chars): ${text.slice(0, 200)}`)
-        }
         return { exitCode: 1 }
       }
     }
